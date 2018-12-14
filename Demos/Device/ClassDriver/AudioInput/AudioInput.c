@@ -127,12 +127,14 @@ ISR(TCC0_OVF_vect, ISR_BLOCK)
 		int16_t AudioSample;
 
 		#if defined(USE_TEST_TONE)
-			static uint8_t SquareWaveSampleCount;
-			static int16_t CurrentWaveValue;
+			static uint8_t SquareWaveSampleCount = 0;
+			static int16_t CurrentWaveValue = -30000;
 
 			/* In test tone mode, generate a square wave at 1/256 of the sample rate */
-			if (SquareWaveSampleCount++ == 0xFF)
-			  CurrentWaveValue ^= 0x8000;
+			if (SquareWaveSampleCount++ == 0xFF) {
+			    CurrentWaveValue *= -1;
+            }
+
 			AudioSample = CurrentWaveValue;
 
 		#else
