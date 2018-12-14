@@ -109,7 +109,7 @@
 		/* Type Defines: */
 			typedef struct
 			{
-				uint8_t Data[64];
+				uint8_t Data[128];
 
 				uint8_t Length;
 				uint8_t Position;
@@ -233,7 +233,7 @@
 
 				// TODO - Fix once limitations are lifted
 				EPConfigMask &= ~USB_EP_PINGPONG_bm;
-				if (Size > 64)
+				if (Size > 128)
 				  return false;
 
 				switch (Type)

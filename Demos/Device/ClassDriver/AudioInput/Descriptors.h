@@ -48,7 +48,7 @@
 		#define AUDIO_STREAM_EPADDR           (ENDPOINT_DIR_IN | 1)
 
 		/** Endpoint size in bytes of the Audio isochronous streaming data endpoint. */
-		#define AUDIO_STREAM_EPSIZE           256
+		#define AUDIO_STREAM_EPSIZE           128
 
 	/* Type Defines: */
 		/** Type define for the device configuration descriptor structure. This must be defined in the
