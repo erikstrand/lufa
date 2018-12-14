@@ -11,10 +11,10 @@
 
 # Run "make help" for target help.
 
-MCU          = at90usb1287
-ARCH         = AVR8
-BOARD        = USBKEY
-F_CPU        = 8000000
+MCU          = atxmega128a4u
+ARCH         = XMEGA
+BOARD        = BOARD_USER
+F_CPU        = 48000000
 F_USB        = $(F_CPU)
 OPTIMIZATION = s
 TARGET       = AudioInput
