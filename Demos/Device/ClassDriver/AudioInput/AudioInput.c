@@ -133,6 +133,7 @@ ISR(TCC0_OVF_vect, ISR_BLOCK)
 			/* In test tone mode, generate a square wave at 1/256 of the sample rate */
 			if (SquareWaveSampleCount++ == 0xFF) {
 			    CurrentWaveValue *= -1;
+                LEDs_ToggleLEDs(LEDS_LED3);
             }
 
 			AudioSample = CurrentWaveValue;
