@@ -43,7 +43,7 @@
 		#include <avr/interrupt.h>
 
 		#include <LUFA/Drivers/Board/LEDs.h>
-		#include <LUFA/Drivers/Peripheral/ADC.h>
+		//#include <LUFA/Drivers/Peripheral/ADC.h>
 		#include <LUFA/Drivers/USB/USB.h>
 		#include <LUFA/Platform/Platform.h>
 
@@ -55,7 +55,7 @@
 		#define SAMPLE_MAX_RANGE          0xFFFF
 
 		/** Maximum ADC range for the microphone input. */
-		#define ADC_MAX_RANGE             0x3FF
+		//#define ADC_MAX_RANGE             0x3FF
 
 		/** LED mask for the library LED driver, to indicate that the USB interface is not ready. */
 		#define LEDMASK_USB_NOTREADY      LEDS_LED1
