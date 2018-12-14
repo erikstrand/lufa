@@ -90,7 +90,6 @@ void SetupHardware(void)
 
 	/* Hardware Initialization */
 	LEDs_Init();
-	Buttons_Init();
 	ADC_Init(ADC_FREE_RUNNING | ADC_PRESCALE_32);
 	ADC_SetupChannel(MIC_IN_ADC_CHANNEL);
 	USB_Init();
@@ -116,9 +115,8 @@ ISR(TIMER0_COMPA_vect, ISR_BLOCK)
 			/* In test tone mode, generate a square wave at 1/256 of the sample rate */
 			if (SquareWaveSampleCount++ == 0xFF)
 			  CurrentWaveValue ^= 0x8000;
+			AudioSample = CurrentWaveValue;
 
-			/* Only generate audio if the board button is being pressed */
-			AudioSample = (Buttons_GetStatus() & BUTTONS_BUTTON1) ? CurrentWaveValue : 0;
 		#else
 			/* Audio sample is ADC value scaled to fit the entire range */
 			AudioSample = ((SAMPLE_MAX_RANGE / ADC_MAX_RANGE) * ADC_GetResult());
