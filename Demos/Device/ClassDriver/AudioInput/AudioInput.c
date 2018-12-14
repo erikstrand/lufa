@@ -86,6 +86,20 @@ void SetupHardware(void)
 
 	/* Disable clock division */
 	clock_prescale_set(clock_div_1);
+
+#elif (ARCH == ARCH_XMEGA)
+    // TODO use more accurate external crystal
+	/* Start the PLL to multiply the 2MHz RC oscillator to 32MHz and switch the CPU core to run from it */
+	XMEGACLK_StartPLL(CLOCK_SRC_INT_RC2MHZ, 2000000, F_CPU);
+	XMEGACLK_SetCPUClockSource(CLOCK_SRC_PLL);
+
+	/* Start the 32MHz internal RC oscillator and start the DFLL to increase it to 48MHz using the USB SOF as a reference */
+	XMEGACLK_StartInternalOscillator(CLOCK_SRC_INT_RC32MHZ);
+	XMEGACLK_StartDFLL(CLOCK_SRC_INT_RC32MHZ, DFLL_REF_INT_USBSOF, F_USB);
+
+    // Enable low, medium, and high level interrupts
+	PMIC.CTRL = PMIC_LOLVLEN_bm | PMIC_MEDLVLEN_bm | PMIC_HILVLEN_bm;
+
 #endif
 
 	/* Hardware Initialization */
@@ -99,7 +113,11 @@ void SetupHardware(void)
 }
 
 /** ISR to handle the reloading of the data endpoint with the next sample. */
+#if (ARCH == ARCH_AVR8)
 ISR(TIMER0_COMPA_vect, ISR_BLOCK)
+#elif (ARCH == ARCH_XMEGA)
+ISR(TCC0_OVF_vect, ISR_BLOCK)
+#endif
 {
 	uint8_t PrevEndpoint = Endpoint_GetCurrentEndpoint();
 
@@ -138,18 +156,44 @@ void EVENT_USB_Device_Connect(void)
 {
 	LEDs_SetAllLEDs(LEDMASK_USB_ENUMERATING);
 
-	/* Sample reload timer initialization */
-	TIMSK0  = (1 << OCIE0A);
-	OCR0A   = ((F_CPU / 8 / CurrentAudioSampleFrequency) - 1);
-	TCCR0A  = (1 << WGM01);  // CTC mode
-	TCCR0B  = (1 << CS01);   // Fcpu/8 speed
+    #if (ARCH == ARCH_AVR8)
+        // Sample reload timer initialization
+        TIMSK0  = (1 << OCIE0A);
+        OCR0A   = ((F_CPU / 8 / CurrentAudioSampleFrequency) - 1);
+        TCCR0A  = (1 << WGM01);  // CTC mode
+        TCCR0B  = (1 << CS01);   // Fcpu/8 speed
+
+    #elif (ARCH == ARCH_XMEGA)
+        // Run in normal mode and count up
+        TCC0.CTRLE = TC_BYTEM_NORMAL_gc;
+        TCC0.CTRLFCLR = TC0_DIR_bm;
+
+        // Set the correct period
+        const uint16_t top = ((F_CPU / 8 / CurrentAudioSampleFrequency) - 1);
+        TCC0.PERL = (uint8_t)(top);
+        TCC0.PERH = (top >> 8u);
+
+        // Enable the overflow interrupt
+        TCC0.INTCTRLA |= TC_OVFINTLVL_LO_gc;
+
+        // This selects the clock prescaler and turns the timer on
+        TCC0.CTRLA = TC_CLKSEL_DIV8_gc;
+
+    #endif
 }
 
 /** Event handler for the library USB Disconnection event. */
 void EVENT_USB_Device_Disconnect(void)
 {
-	/* Stop the sample reload timer */
-	TCCR0B = 0;
+    #if (ARCH == ARCH_AVR8)
+        // Stop the sample reload timer
+        TCCR0B = 0;
+
+    #elif (ARCH == ARCH_XMEGA)
+        // Stop the sample reload timer
+        TCC0.CTRLA = 0;
+
+    #endif
 
 	LEDs_SetAllLEDs(LEDMASK_USB_NOTREADY);
 }
@@ -214,8 +258,16 @@ bool CALLBACK_Audio_Device_GetSetEndpointProperty(USB_ClassInfo_Audio_Device_t* 
 						/* Set the new sampling frequency to the value given by the host */
 						CurrentAudioSampleFrequency = (((uint32_t)Data[2] << 16) | ((uint32_t)Data[1] << 8) | (uint32_t)Data[0]);
 
-						/* Adjust sample reload timer to the new frequency */
-						OCR0A = ((F_CPU / 8 / CurrentAudioSampleFrequency) - 1);
+                        // Adjust sample reload timer to the new frequency
+                        #if (ARCH == ARCH_AVR8)
+                            OCR0A = ((F_CPU / 8 / CurrentAudioSampleFrequency) - 1);
+
+                        #elif (ARCH == ARCH_XMEGA)
+                            const uint16_t top = ((F_CPU / 8 / CurrentAudioSampleFrequency) - 1);
+                            TCC0.PERBUFL = (uint8_t)(top);
+                            TCC0.PERBUFH = (top >> 8u);
+
+                        #endif
 					}
 
 					return true;
