@@ -56,7 +56,8 @@ USB_ClassInfo_Audio_Device_t Microphone_Audio_Interface =
 	};
 
 /** Current audio sampling frequency of the streaming audio endpoint. */
-static uint32_t CurrentAudioSampleFrequency = 48000;
+//static uint32_t CurrentAudioSampleFrequency = 48000;
+static uint32_t CurrentAudioSampleFrequency = 44100;
 
 
 /** Main program entry point. This routine contains the overall program flow, including initial
@@ -106,6 +107,7 @@ void SetupHardware(void)
 	LEDs_Init();
 	//ADC_Init(ADC_FREE_RUNNING | ADC_PRESCALE_32);
 	//ADC_SetupChannel(MIC_IN_ADC_CHANNEL);
+    SetupADC();
 	USB_Init();
 
 	/* Start the ADC conversion in free running mode */
@@ -125,6 +127,7 @@ ISR(TCC0_OVF_vect, ISR_BLOCK)
 	if (Audio_Device_IsReadyForNextSample(&Microphone_Audio_Interface))
 	{
 		int16_t AudioSample;
+        uint16_t adc_reading;
 
 		#if defined(USE_TEST_TONE)
 			static uint8_t SquareWaveSampleCount = 0;
@@ -133,19 +136,22 @@ ISR(TCC0_OVF_vect, ISR_BLOCK)
 			/* In test tone mode, generate a square wave at 1/256 of the sample rate */
 			if (SquareWaveSampleCount++ == 0xFF) {
 			    CurrentWaveValue *= -1;
-                LEDs_ToggleLEDs(LEDS_LED3);
+                //LEDs_ToggleLEDs(LEDS_LED3);
             }
 
 			AudioSample = CurrentWaveValue;
 
 		#else
 			/* Audio sample is ADC value scaled to fit the entire range */
-			AudioSample = ((SAMPLE_MAX_RANGE / ADC_MAX_RANGE) * ADC_GetResult());
+			//AudioSample = ((SAMPLE_MAX_RANGE / ADC_MAX_RANGE) * ADC_GetResult());
 
-			#if defined(MICROPHONE_BIASED_TO_HALF_RAIL)
-			/* Microphone is biased to half rail voltage, subtract the bias from the sample value */
-			AudioSample -= (SAMPLE_MAX_RANGE / 2);
-			#endif
+            adc_reading = GetADCReading();
+            AudioSample = (int16_t)(adc_reading) - 2048;
+
+			//#if defined(MICROPHONE_BIASED_TO_HALF_RAIL)
+			// Microphone is biased to half rail voltage, subtract the bias from the sample value
+			//AudioSample -= (SAMPLE_MAX_RANGE / 2);
+			//#endif
 		#endif
 
 		Audio_Device_WriteSample16(&Microphone_Audio_Interface, AudioSample);
@@ -259,7 +265,7 @@ bool CALLBACK_Audio_Device_GetSetEndpointProperty(USB_ClassInfo_Audio_Device_t* 
 					if (DataLength != NULL)
 					{
 						/* Set the new sampling frequency to the value given by the host */
-						CurrentAudioSampleFrequency = (((uint32_t)Data[2] << 16) | ((uint32_t)Data[1] << 8) | (uint32_t)Data[0]);
+						//CurrentAudioSampleFrequency = (((uint32_t)Data[2] << 16) | ((uint32_t)Data[1] << 8) | (uint32_t)Data[0]);
 
                         // Adjust sample reload timer to the new frequency
                         #if (ARCH == ARCH_AVR8)
@@ -325,3 +331,47 @@ bool CALLBACK_Audio_Device_GetSetInterfaceProperty(USB_ClassInfo_Audio_Device_t*
 	/* No audio interface entities in the device descriptor, thus no properties to get or set. */
 	return false;
 }
+
+uint8_t ReadCalibrationByte(uint8_t index) {
+    uint8_t result;
+
+    NVM_CMD = NVM_CMD_READ_CALIB_ROW_gc;
+    result = pgm_read_byte(index);
+    NVM_CMD = NVM_CMD_NO_OPERATION_gc;
+    return result;
+}
+
+void SetupADC(void) {
+	ADCA.CALL = ReadCalibrationByte(PRODSIGNATURES_ADCBCAL0);
+	ADCA.CALH = ReadCalibrationByte(PRODSIGNATURES_ADCBCAL1);
+
+	ADCA.PRESCALER = ADC_PRESCALER_DIV512_gc;
+    //ADCA.EVCTRL = 0;
+	ADCA.CTRLB = ADC_FREERUN_bm | ADC_RESOLUTION_12BIT_gc;
+
+	// Using highest available reference voltage: 3.3/1.6 = 2.0625V.
+	// For our thermistor setup, we use a fixed resistor of 75K.
+	// So the lowest temp we can read should be about 20C (i.e. 125K).
+	ADCA.REFCTRL = ADC_REFSEL_INTVCC_gc;
+
+	ADCA.CH0.CTRL = ADC_CH_INPUTMODE_SINGLEENDED_gc;
+	ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN7_gc;
+
+	// enable the ADC and start conversions
+	ADCA.CTRLA |= ADC_ENABLE_bm | ADC_CH0START_bm;
+}
+
+uint16_t GetADCReading(void) {
+    // TODO Don't have horrible sample timing jitter
+
+    // Read the last sample
+    uint16_t result = 0;
+    result |= ADCA.CH0.RESL;
+    result |= (ADCA.CH0.RESH << 8);
+
+    // Clear the interrupt flag so another conversion can occur
+    ADCA.CH0.INTFLAGS |= 1u;
+
+    return result;
+}
+

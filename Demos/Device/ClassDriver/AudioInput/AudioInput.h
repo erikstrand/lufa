@@ -61,13 +61,13 @@
 		#define LEDMASK_USB_NOTREADY      LEDS_NO_LEDS
 
 		/** LED mask for the library LED driver, to indicate that the USB interface is enumerating. */
-		#define LEDMASK_USB_ENUMERATING  (LEDS_LED2)
+		#define LEDMASK_USB_ENUMERATING  (LEDS_LED3)
 
 		/** LED mask for the library LED driver, to indicate that the USB interface is ready. */
 		#define LEDMASK_USB_READY        (LEDS_LED1)
 
 		/** LED mask for the library LED driver, to indicate that an error has occurred in the USB interface. */
-		#define LEDMASK_USB_ERROR        (LEDS_LED1 | LEDS_LED2)
+		#define LEDMASK_USB_ERROR        (LEDS_LED1 | LEDS_LED3)
 
 	/* Function Prototypes: */
 		void SetupHardware(void);
@@ -89,5 +89,10 @@
 		                                                   const uint16_t Parameter,
 		                                                   uint16_t* const DataLength,
 		                                                   uint8_t* Data);
+
+        uint8_t ReadCalibrationByte(uint8_t index);
+		void SetupADC(void);
+		uint16_t GetADCReading(void);
+
 #endif
 

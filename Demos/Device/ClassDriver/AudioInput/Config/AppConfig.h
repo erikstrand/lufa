@@ -46,6 +46,6 @@
 	#define MIC_IN_ADC_CHANNEL               2
 
 	#define MICROPHONE_BIASED_TO_HALF_RAIL
-	#define USE_TEST_TONE
+	//#define USE_TEST_TONE
 
 #endif
